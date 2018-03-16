@@ -1,0 +1,119 @@
+service: sightseeing
+
+plugins:
+  - serverless-reqvalidator-plugin
+  - serverless-aws-documentation
+
+provider:
+  name: aws
+  runtime: nodejs6.10
+  stage: dev
+  region: eu-central-1
+  environment:
+    ROUTE_TABLE: ${self:service}-route-${opt:stage, self:provider.stage}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.ROUTE_TABLE}"
+
+functions:
+  routeCreate:
+    handler: route/create.routeCreate
+    events:
+      - http:
+          path: route
+          method: post
+          cors: true
+          integration: lambda
+          documentation:
+            summary: "Save route"
+            description: "Saves a new route"
+            tags:
+              - Route
+            requestModels:
+              "application/json": CreateRouteRequest
+          reqValidatorName: onlyBody
+          methodResponses:
+              - statusCode: '200'
+#                responseModels:
+#                  "application/json": CreateRouteResponse
+#              - ${self:custom.commonModelSchemaFragments.MethodResponse400Json}
+
+          
+custom:
+  documentation:
+    api:
+      info:
+        version: '0.0.1'
+        title: Sightseeing
+        description: API for the Sightseeing application
+      tags:
+        -
+          name: Route
+          description: Route Management
+    models:
+#      - name: MessageResponse
+#        contentType: "application/json"
+#        schema:
+#          type: object
+#          properties:
+#            message:
+#              type: string
+      - name: CreateRouteRequest
+        contentType: "application/json"
+        schema:
+          required: 
+            - startPoint
+#            - intermediatePoints
+#            - endPoint
+#            - isRoundTrip
+#            - routeLength
+          properties:
+            startPoint:
+              type: object
+              properties:
+                latitude:
+                  type: number
+                longitude:
+                  type: number
+#            password:
+#              type: string
+#      - name: RegisterUserResponse
+#        contentType: "application/json"
+#        schema:
+#          type: object
+#          properties:
+#            result:
+#              type: string
+#      - name: 400JsonResponse
+#        contentType: "application/json"
+#        schema:
+#          type: object
+#          properties:
+#            message:
+#              type: string
+#            statusCode:
+#              type: number
+#  commonModelSchemaFragments:
+#    MethodResponse400Json:
+#      statusCode: '400'
+#      responseModels:
+#        "application/json": 400JsonResponse
+
+        
+resources:
+  Resources:
+    onlyBody:  
+      Type: "AWS::ApiGateway::RequestValidator"
+      Properties:
+        Name: 'only-body'
+        RestApiId: 
+          Ref: ApiGatewayRestApi
+        ValidateRequestBody: true
+        ValidateRequestParameters: false

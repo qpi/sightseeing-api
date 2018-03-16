@@ -1,0 +1,181 @@
+service: sightseeing
+
+plugins:
+  - serverless-reqvalidator-plugin
+  - serverless-aws-documentation
+
+provider:
+  name: aws
+  runtime: nodejs6.10
+  stage: dev
+  region: eu-central-1
+  environment:
+    ROUTE_TABLE: ${self:service}-route-${opt:stage, self:provider.stage}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.ROUTE_TABLE}"
+
+functions:
+  routeRead:
+    handler: route/read.routeRead
+    events:
+      - http:
+          path: route/{type}
+          method: get
+          cors: true
+          integration: lambda
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:502222492703:userpool/eu-central-1_1FZPlKyRN
+      - http:
+          path: route
+          method: get
+          cors: true
+          integration: lambda
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:502222492703:userpool/eu-central-1_1FZPlKyRN
+  routeCreate:
+    handler: route/create.routeCreate
+    events:
+      - http:
+          path: route
+          method: post
+          cors: true
+          integration: lambda
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:502222492703:userpool/eu-central-1_1FZPlKyRN
+#            claims:
+#              - email
+#              - name
+          documentation:
+            summary: "Save route"
+            description: "Saves a new route"
+            tags:
+              - Route
+            requestModels:
+              "application/json": CreateRouteRequest
+          reqValidatorName: onlyBody
+          methodResponses:
+              - statusCode: '200'
+#                responseModels:
+#                  "application/json": CreateRouteResponse
+#              - ${self:custom.commonModelSchemaFragments.MethodResponse400Json}
+
+          
+custom:
+  documentation:
+    api:
+      info:
+        version: '0.0.1'
+        title: Sightseeing
+        description: API for the Sightseeing application
+      tags:
+        -
+          name: Route
+          description: Route Management
+    models:
+#      - name: PoiCategory
+#        contentType: "application/json"
+#        schema:
+#          required:
+#            - id
+#            - name
+#          properties:
+#            id:
+#              type: string
+#            name:
+#              type: string
+      - name: PoiType
+        contentType: "application/json"
+        schema:
+          required:
+            - id
+            - title
+            - category
+          properties:
+            id:
+              type: string
+            category:
+              type: string
+ #             $ref: "{{model: PoiCategory}}"
+            name:
+              title: string
+      - name: Poi
+        contentType: "application/json"
+        schema:
+          required:
+            - id
+            - type
+            - name
+            - latitude
+            - longitude
+          properties:
+            id:
+              type: number
+            name:
+              type: string
+            type:
+              $ref: "{{model: PoiType}}"
+            latitude:
+              type: number
+            longitude:
+              type: number
+      - name: CreateRouteRequest
+        contentType: "application/json"
+        schema:
+          required: 
+            - name
+            - startPoint
+            - intermediatePoints
+            - endPoint
+            - isRoundTrip
+            - routeLength
+          properties:
+            startPoint:
+              type: object
+              required:
+                - latitude
+                - longitude
+              properties:
+                latitude:
+                  type: number
+                longitude:
+                  type: number
+            intermediatePoints:
+              type: array
+              items:
+                $ref: "{{model: Poi}}"
+            endPoint:
+              type: object
+              required:
+                - latitude
+                - longitude
+              properties:
+                latitude:
+                  type: number
+                longitude:
+                  type: number
+            isRoundTrip:
+              type: boolean
+            routeLength:
+              type: number
+        
+resources:
+  Resources:
+    onlyBody:  
+      Type: "AWS::ApiGateway::RequestValidator"
+      Properties:
+        Name: 'only-body'
+        RestApiId: 
+          Ref: ApiGatewayRestApi
+        ValidateRequestBody: true
+        ValidateRequestParameters: false
