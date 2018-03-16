@@ -139,6 +139,9 @@ custom:
             - endPoint
             - isRoundTrip
             - routeLength
+            - mapLatitude
+            - mapLongitude
+            - mapZoom
           properties:
             startPoint:
               type: object
@@ -167,6 +170,12 @@ custom:
             isRoundTrip:
               type: boolean
             routeLength:
+              type: number
+            mapLatitude:
+              type: number
+            mapLongitude:
+              type: number
+            mapZoom:
               type: number
         
 resources:
